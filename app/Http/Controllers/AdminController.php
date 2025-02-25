@@ -265,7 +265,7 @@ class AdminController extends Controller
             });
         });
 
-        $totalQuantity = $data->sum(function ($user) {
+        $totalQuantity = $data->sum(function ($user){
             return $user->carts->sum('quantity');
         });
 
@@ -278,9 +278,9 @@ class AdminController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $data,
             'totalPrice' => $totalPrice,
-            'totalQuantity' => $totalQuantity
+            'totalQuantity' => $totalQuantity,
+            'data' => $data
         ]);
     }
 
