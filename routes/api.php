@@ -16,6 +16,9 @@ Route::post('/signup',[AdminController::class , 'signUp']);
 #Login
 Route::post('/login',[AdminController::class , 'login']);
 
+#Profile
+Route::middleware('auth:sanctum')->get('/profile', [AdminController::class, 'profile']);
+
 #Show All Product
 Route::middleware('auth:sanctum')->get('/viewallproduct', [AdminController::class, 'viewAllProduct']);
 

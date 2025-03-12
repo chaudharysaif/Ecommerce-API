@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Session;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 
 class AdminController extends Controller
 {
@@ -26,15 +27,29 @@ class AdminController extends Controller
         ]);
     }
 
+    function profile()
+    {
+        $users = Auth::user();
+        return response()->json([
+            'status' => true,
+            'data' => $users,
+        ]);
+    }
+
     function signUp(Request $request)
     {
+        $request->validate([
+            'name' => 'required|string|max:255|min:3',
+            'email' => 'required|email|unique:users,email|max:255',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
         Session::start();
         $user = new User;
         $user->name = $request->name;
         $user->email = $request->email;
         $user->password = Hash::make($request->password);
         $user->save();
-        // $token = $user->createToken('auth_token')->plainTextToken;
 
         Session::put('id', $user->id);
 
@@ -42,25 +57,29 @@ class AdminController extends Controller
             'status' => true,
             'message' => 'User registered successfully',
             'user' => $user,
-            // 'token' => $token,
-            // 'token_type' => 'Bearer',
         ]);
     }
 
     function login(Request $request)
     {
+        $request->validate([
+            'email' => 'required|email|max:255',
+            'password' => 'required|string|min:6',
+        ]);
+
         $user = User::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
                 'status' => false,
-                'error' => "Email or password not matched"
+                'error' => "Email or password not matched!"
             ]);
         }
-        $token = $user->createToken('auth_token')->plainTextToken;
         Session::start();
         Session::put('id', $user->id);
         Session::save();
+
+        $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'status' => true,
@@ -107,18 +126,21 @@ class AdminController extends Controller
     // View All Product on web and dashboard
     function viewAllProduct()
     {
-        $product = Product::all()->map(function ($product) {
+        $products = Product::Paginate(12);
+        $products->getCollection()->transform(function ($product) {
             return [
                 'id' => $product->id,
                 'name' => $product->name,
                 'price' => $product->price,
                 'category' => $product->category,
-                'image' => $product->getFirstMediaUrl('default')
+                'image' => $product->getFirstMediaUrl('default'),
             ];
         });
+
         return response()->json([
             "status" => true,
-            "data" => $product
+            "total_page" => $products->lastPage(),
+            "data" => $products
         ]);
     }
 
@@ -168,7 +190,6 @@ class AdminController extends Controller
         }
 
         $cartProducts = Cart::with('products')->where('user_id', $user_id)->get();
-
         $totalPrice = Cart::with('products')
             ->where('user_id', $user_id)
             ->get()
@@ -179,6 +200,7 @@ class AdminController extends Controller
                 $cartItem->products->image = $cartItem->products->getFirstMediaUrl('default');
             }
         });
+        
         return response()->json([
             'status' => true,
             'data' => $cartProducts,
@@ -265,7 +287,7 @@ class AdminController extends Controller
             });
         });
 
-        $totalQuantity = $data->sum(function ($user){
+        $totalQuantity = $data->sum(function ($user) {
             return $user->carts->sum('quantity');
         });
 
@@ -284,8 +306,7 @@ class AdminController extends Controller
         ]);
     }
 
-
-    // Get Single Product
+    // Get Single Product On Web
     function getProduct($id)
     {
         $getProduct = product::findOrFail($id);
